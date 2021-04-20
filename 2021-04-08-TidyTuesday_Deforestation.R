@@ -22,7 +22,6 @@ tuesdata <- tidytuesdayR::tt_load('2021-04-06')
 forest <- tuesdata$forest
 forest_area <- tuesdata$forest_area
 brazil_loss <- tuesdata$brazil_loss
-soybean <- tuesdata$soybean_use
 vegetable_oil <- tuesdata$vegetable_oil
 
 
@@ -43,6 +42,7 @@ data <- world_map %>% left_join(forest_area %>%
 map <- ggplot(data) + 
   geom_sf(aes(fill=change_2013_2001)) + 
   scale_fill_distiller(palette="RdYlGn", direction = 1, guide=guide_legend()) + 
+  coord_sf(clip="off") + 
   theme_minimal() + 
   theme(plot.title = element_markdown(),
         plot.title.position = "plot",
@@ -52,14 +52,14 @@ map <- ggplot(data) +
         legend.background = element_rect(color = "black"),
         axis.title = element_blank(),
         axis.text = element_blank(),
-        text=element_text(family="Times New Roman")) + 
+        text=element_text(family="Tahoma")) + 
   guides(fill=guide_colorbar(title.position = "top", 
                              title.hjust = 0.5,
                              barheight = unit(5, 'lines'),
                              barwidth = unit(1, 'lines'),
                              ticks=F)) + 
-  labs(title="**Worldwide largest forest loss happens in Brazil**",
-       subtitle="*between 2001 and 2013*",
+  labs(title="**Worldwide largest forest loss in Brazil**",
+       subtitle="*2001 - 2013*",
        #caption = "DataViz: @PatriziaMaier | Data: Our World in Data",
        fill="Change \nin %")
   
@@ -74,54 +74,26 @@ causes <- ggplot(brazil_loss_long, aes(x=value, y=factor(year), fill=name)) +
   geom_bar(stat="identity", color="black") + 
   scale_fill_brewer(palette="Spectral", direction = -1, 
                     labels=c("crops", "fire", "flooding due to dams", "mining", "natural disturbance", 
-                             "other infrastructure", "pasture", "roads", "selective logging", 
+                             "other infrastructure", "**pasture**", "roads", "selective logging", 
                              "small-scale clearing", "plantations")) + 
   scale_x_continuous(labels=scales::number) + 
-  coord_flip() + 
+  coord_flip(clip="off") + 
   theme_minimal() + 
   theme(plot.title = element_markdown(),
         plot.title.position = "plot",
         plot.subtitle = element_markdown(),
         plot.caption.position = "plot",
         legend.title = element_blank(),
+        legend.text = element_markdown(),
         axis.title.x = element_blank(),
         axis.title.y = element_markdown(), 
         axis.text.x = element_text(size=10, angle=0),
         axis.text.y = element_text(size=8, angle=45),
-        text=element_text(family="Times New Roman")) + 
+        text=element_text(family="Tahoma")) + 
   labs(title="**Causes of forest loss in Brazil**",
-       subtitle="*between 2001 and 2013*",
+       subtitle="*2001 - 2013*",
        #caption = "DataViz: @PatriziaMaier | Data: Our World in Data",
        x="**Loss in hectares** (ha)")
-
-# stacked bar chart on soybean production
-brazil_soybean <- soybean %>%
-  filter(code=="BRA" & year>=2001 & year <=2013) %>% 
-  select(-entity, -code) %>% 
-  group_by(year) %>% 
-  pivot_longer(cols = !year)
-
-chart_soybean <- ggplot(brazil_soybean, aes(x=value, y=factor(year), fill=name)) + 
-  geom_bar(stat="identity", color="black") + 
-  scale_fill_brewer(palette="Spectral", direction = -1, 
-                    labels=c("animal feed", "human food", "processed")) + 
-  scale_x_continuous(labels=scales::number) + 
-  coord_flip() + 
-  theme_minimal() + 
-  theme(plot.title = element_markdown(),
-        plot.title.position = "plot",
-        plot.subtitle = element_markdown(),
-        plot.caption.position = "plot",
-        legend.title = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_markdown(), 
-        axis.text.x = element_text(size=10, angle=0),
-        axis.text.y = element_text(size=8, angle=45),
-        text=element_text(family="Times New Roman")) +
-  labs(title="**Soybean production in Brazil**",
-       subtitle = "*between 2001 and 2013*",
-       #caption = "DataViz: @PatriziaMaier | Data: Our World in Data",
-       x="**Production in tons** (t)") 
 
 
 # pie chart on vegetable oil production 
@@ -132,10 +104,10 @@ brazil_oil <- vegetable_oil %>%
 
 pie_oil <- ggplot(brazil_oil, aes(x="", y=production, fill=crop_oil)) + 
   geom_bar(stat="identity", color="black") + 
-  coord_polar("y") + 
+  coord_polar("y", clip = "off") + 
   scale_fill_brewer(palette="Spectral", direction = -1, 
-                    labels=c("Coconut", "Cottonseed", "Groundnut", "Linseed", "Maize", 
-                             "Palm", "Palm kernel", "Rapeseed", "**Soybean**", "Sunflower")) + 
+                    labels=c("coconut", "cottonseed", "groundnut", "linseed", "maize", 
+                             "palm", "palm kernel", "rapeseed", "**soybean**", "sunflower")) + 
   theme_void() + 
   theme(plot.title = element_markdown(),
         plot.title.position = "plot",
@@ -145,12 +117,12 @@ pie_oil <- ggplot(brazil_oil, aes(x="", y=production, fill=crop_oil)) +
         legend.text = element_markdown(),
         axis.title = element_blank(),
         axis.text = element_blank(),
-        text=element_text(family="Times New Roman")) +
-  labs(title="**Role of soybean for vegetable oil production in Brazil**",
-       subtitle = "*between 2001 and 2013*",
+        text=element_text(family="Tahoma")) +
+  labs(title="**Vegetable oil production in Brazil**",
+       subtitle = "*2001 - 2013*",
        caption = "DataViz: @PatriziaMaier | Data: Our World in Data")  
 
-(map) / (causes + pie_oil) + plot_layout(guides="collect")
+(map) / (causes + pie_oil)
 
-ggsave("C:/Users/Patrizia/Data/Data Science/TidyTuesday/deforestation_2021.png", width=10, height=15)
+ggsave("C:/Users/Patrizia/Data/Data Science/TidyTuesday/deforestation_2021.png", width=15, height=10)
 
