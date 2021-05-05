@@ -22,42 +22,62 @@ tuesdata <- tidytuesdayR::tt_load('2021-04-27')
 departures <- tuesdata$departures
 
 
-# add gender information
-first_name <- departures$exec_fullname %>% 
-  strsplit(split=" ") %>% # split names
-  rvest::pluck(1) %>%  # get first name
-  unlist() 
+# text mining gender information (only male/female)
+# extract names
+names <- departures$exec_fullname %>% 
+  str_split_fixed(pattern=" ", n=5) %>% # split names into 5 columns 
+  as_tibble() %>% # convert to tibble
+  mutate(first_name=case_when(
+    str_detect(V1, "\\.") ~ V2, # if abbreviated first name, chose second name
+    TRUE ~ V1 # else first name 
+  ))
 
-gender_guess <- first_name %>% 
+# perform gender guess prediction 
+gender_guess <- names$first_name %>% 
   gender(years = c(1920, 1985), method = "ssa") %>% # apply gender estimation
   select(!starts_with("year")) %>% 
-  distinct() # remove duplicates 
+  distinct() %>%  # remove duplicates 
+  rename("gender_name"="gender") 
+
+# Caution: Some names are ambiguous and can be female or male (see proportion). 
+# In the data set, quite a few CEO's with highly likely "female" names are actually "male". 
+# This is implied by the information in 'notes' (e.g., "Mr. ", "he", ...).
+# Besides, there are quite a few NA's in case of abbreviated first names (e.g., "L.").
+# --> Therefore we need more text mining based on 'notes'. 
+
+indicator_male <- c(" he ", "He ", " he's ", "He's "," his ", "His ", "Mr. ")
+indicator_female <- c(" she ", "She ",  "she's ", "She's ", " her ", "Her ", "Mrs. ", "Ms. ", " lady ")
 
 departures <- departures %>% 
-  bind_cols(first_name) %>% 
-  rename("first_name"="...20") %>% 
+  bind_cols(names) %>% 
   left_join(gender_guess, by=c("first_name"="name")) %>%  
-  mutate(gender=factor(gender),
-         departure_code=factor(departure_code))
+  mutate(gender_notes_fem=str_detect(notes, paste(indicator_female, collapse = "|")),
+         gender_notes_male=str_detect(notes, paste(indicator_male, collapse = "|"))) %>% 
+  mutate(final_gender_guess=case_when(
+    proportion_male > 0.99 ~ "male",
+    proportion_female > 0.99 ~ "female",
+    gender_notes_male & !gender_notes_fem ~ "male",
+    gender_notes_fem & !gender_notes_male ~ "female",
+    !gender_notes_male & !gender_notes_fem ~ gender_name
+  )) %>% 
+  mutate(final_gender_guess=as.factor(final_gender_guess))
 
-summary(departures$gender)
-# female   male   NA's 
-#   342   8438    643 
 
-female_ceos <- departures %>% 
-  filter(gender=="female")
-# problem: many "female" are actually "male" as indicated by "notes" (Mr. X, he, ...)
+# summary(departures$final_gender_guess)
+
+# temp <- departures %>% 
+#   filter(final_gender_guess=="female")
 
 
 # plot
 data_gender <- departures %>% 
   group_by(fyear) %>% 
-  count(gender) %>% 
-  drop_na(gender) %>% 
-  complete(gender, fill=list(n=0)) %>% 
+  count(final_gender_guess) %>% 
+  drop_na(final_gender_guess) %>% 
+  complete(final_gender_guess, fill=list(n=0)) %>% 
   filter(fyear>=1992 & fyear <2020) 
 
-p1 <- ggplot(data_gender, aes(fill = gender, values = n)) +
+p1 <- ggplot(data_gender, aes(fill = final_gender_guess, values = n)) +
   geom_waffle(color = "#f7f2e8", size = .5, n_rows = 5, flip = TRUE) +
   facet_wrap(~fyear,  nrow = 1, strip.position = "bottom") +
   scale_fill_manual(values = c("#ef8f10", "#9f969b")) + 
